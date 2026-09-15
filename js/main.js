@@ -2147,13 +2147,21 @@ function encodePathSegments(path) {
 }
 
 function resolveExamBasePath(exam) {
-    const relativePath = exam && (exam.folder || exam.path) ? String(exam.folder || exam.path) : "";
+    let relativePath = exam && (exam.folder || exam.path)
+        ? String(exam.folder || exam.path)
+        : "";
+
+    // 修复旧题库路径：GitHub 仓库中没有“三月”这一层目录
+    relativePath = relativePath.replace(/^三月\//, '');
+
     const normalizedRelative = relativePath.replace(/\\/g, '/').trim();
+
     if (normalizedRelative && isAbsolutePath(normalizedRelative)) {
         return ensureTrailingSlash(normalizedRelative);
     }
 
     let combined = normalizedRelative;
+
     try {
         const pathMap = getPathMap() || {};
         const type = exam && exam.type;
@@ -2161,6 +2169,7 @@ function resolveExamBasePath(exam) {
         const fallback = type && DEFAULT_PATH_MAP[type] ? DEFAULT_PATH_MAP[type] : {};
         const root = mergeRootWithFallback(mapped.root, fallback.root);
         const normalizedRoot = root.replace(/\\/g, '/');
+
         if (normalizedRoot) {
             if (normalizedRelative && normalizedRelative.startsWith(normalizedRoot)) {
                 combined = normalizedRelative;
@@ -2171,16 +2180,22 @@ function resolveExamBasePath(exam) {
             combined = normalizedRelative;
         }
 
-        // 若 exam 已带有完整 folder 路径，跳过基于旧 DEFAULT_PATH_MAP 的 fallbackTopRoot 补齐
-        const fallbackTopRoot = exam && exam.folder ? '' : extractTopLevelRootSegment(fallback.root);
+        const fallbackTopRoot = exam && exam.folder
+            ? ''
+            : extractTopLevelRootSegment(fallback.root);
+
         if (fallbackTopRoot && !combined.replace(/\\/g, '/').startsWith(fallbackTopRoot)) {
-            const normalizedCombined = combined.replace(/\\/g, '/').replace(/^\/+/, '');
+            const normalizedCombined = combined
+                .replace(/\\/g, '/')
+                .replace(/^\/+/, '');
+
             combined = fallbackTopRoot + normalizedCombined;
         }
-    } catch (_) { }
+    } catch (_) {}
 
     combined = combined.replace(/\\/g, '/');
     combined = combined.replace(/\/{2,}/g, '/');
+
     return ensureTrailingSlash(combined);
 }
 
